@@ -1,0 +1,510 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+  <title>CodeFlow Monitor | Dev Productivity Hub</title>
+  <!-- Google Fonts + Font Awesome + Chart.js -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;14..32,400;14..32,500;14..32,600;14..32,700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      font-family: 'Inter', sans-serif;
+      transition: background 0.2s ease, color 0.2s ease, border-color 0.2s;
+    }
+
+    :root {
+      --bg-body: #f6f8fc;
+      --sidebar-bg: #ffffff;
+      --card-bg: #ffffff;
+      --text-primary: #1e293b;
+      --text-secondary: #475569;
+      --border: #e2e8f0;
+      --accent: #3b82f6;
+      --accent-hover: #2563eb;
+      --success: #10b981;
+      --danger: #ef4444;
+      --warning: #f59e0b;
+      --shadow: 0 4px 12px rgba(0,0,0,0.05);
+      --hover-bg: #f1f5f9;
+    }
+
+    body.dark {
+      --bg-body: #0f172a;
+      --sidebar-bg: #1e293b;
+      --card-bg: #1e293b;
+      --text-primary: #f1f5f9;
+      --text-secondary: #cbd5e1;
+      --border: #334155;
+      --hover-bg: #334155;
+      --shadow: 0 4px 12px rgba(0,0,0,0.3);
+    }
+
+    body {
+      background: var(--bg-body);
+      color: var(--text-primary);
+    }
+
+    /* Layout */
+    .app-container {
+      display: flex;
+      min-height: 100vh;
+    }
+
+    /* Sidebar */
+    .sidebar {
+      width: 260px;
+      background: var(--sidebar-bg);
+      border-right: 1px solid var(--border);
+      padding: 1.5rem 1rem;
+      position: fixed;
+      height: 100vh;
+      overflow-y: auto;
+      z-index: 10;
+      transition: transform 0.3s ease;
+    }
+
+    .logo {
+      font-size: 1.5rem;
+      font-weight: 700;
+      background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
+      margin-bottom: 2rem;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .nav-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px 16px;
+      border-radius: 12px;
+      margin: 6px 0;
+      cursor: pointer;
+      font-weight: 500;
+      color: var(--text-secondary);
+      transition: all 0.2s;
+    }
+
+    .nav-item i { width: 24px; }
+    .nav-item.active, .nav-item:hover {
+      background: var(--hover-bg);
+      color: var(--accent);
+    }
+
+    /* main */
+    .main-content {
+      flex: 1;
+      margin-left: 260px;
+      padding: 1.8rem 2rem;
+      overflow-x: auto;
+    }
+
+    /* cards */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 1.2rem;
+      margin-bottom: 2rem;
+    }
+    .stat-card {
+      background: var(--card-bg);
+      border-radius: 1.5rem;
+      padding: 1.2rem;
+      box-shadow: var(--shadow);
+      border: 1px solid var(--border);
+      transition: transform 0.2s;
+    }
+    .stat-card:hover { transform: translateY(-3px); }
+    .stat-title { font-size: 0.85rem; color: var(--text-secondary); letter-spacing: 0.5px; }
+    .stat-value { font-size: 2rem; font-weight: 700; margin-top: 8px; }
+
+    .chart-container {
+      background: var(--card-bg);
+      border-radius: 1.5rem;
+      padding: 1rem;
+      margin-bottom: 2rem;
+      border: 1px solid var(--border);
+    }
+
+    /* forms & tables */
+    .btn {
+      background: var(--accent);
+      border: none;
+      padding: 8px 18px;
+      border-radius: 40px;
+      color: white;
+      font-weight: 500;
+      cursor: pointer;
+      transition: 0.2s;
+    }
+    .btn-outline {
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--text-primary);
+    }
+    .btn-sm { padding: 4px 12px; font-size: 0.8rem; }
+    input, select, textarea {
+      background: var(--bg-body);
+      border: 1px solid var(--border);
+      padding: 8px 12px;
+      border-radius: 12px;
+      color: var(--text-primary);
+    }
+    .grid-form { display: grid; gap: 12px; margin-bottom: 1rem; }
+    .entry-list { max-height: 400px; overflow-y: auto; }
+    .entry-item {
+      background: var(--hover-bg);
+      margin: 8px 0;
+      padding: 12px;
+      border-radius: 16px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .badge { background: var(--accent); border-radius: 30px; padding: 4px 10px; font-size: 0.7rem; color: white; }
+
+    /* responsive */
+    @media (max-width: 768px) {
+      .sidebar { transform: translateX(-100%); width: 240px; }
+      .sidebar.open { transform: translateX(0); }
+      .main-content { margin-left: 0; padding: 1rem; }
+      .menu-toggle { display: block; position: fixed; top: 1rem; left: 1rem; z-index: 20; background: var(--card-bg); border-radius: 50%; padding: 8px; }
+    }
+    .menu-toggle { display: none; }
+    .dark-toggle {
+      margin-top: 2rem;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px;
+      cursor: pointer;
+    }
+    .toast-msg {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      background: var(--accent);
+      color: white;
+      padding: 12px 20px;
+      border-radius: 40px;
+      z-index: 100;
+      animation: fadeIn 0.3s;
+    }
+    @keyframes fadeIn { from{ opacity: 0; transform: translateY(20px);} to{ opacity:1; } }
+    .progress-bar {
+      background: var(--border);
+      border-radius: 20px;
+      height: 8px;
+      width: 100%;
+      overflow: hidden;
+    }
+    .progress-fill { background: var(--accent); height: 100%; width: 0%; }
+  </style>
+</head>
+<body>
+<div class="app-container">
+  <div class="sidebar" id="sidebar">
+    <div class="logo"><i class="fas fa-code"></i> CodeFlow</div>
+    <div class="nav-item active" data-view="dashboard"><i class="fas fa-chart-line"></i> Dashboard</div>
+    <div class="nav-item" data-view="coding"><i class="fas fa-laptop-code"></i> Coding Tracker</div>
+    <div class="nav-item" data-view="projects"><i class="fas fa-project-diagram"></i> Projects</div>
+    <div class="nav-item" data-view="learning"><i class="fas fa-graduation-cap"></i> Learning</div>
+    <div class="nav-item" data-view="habits"><i class="fas fa-check-circle"></i> Habits</div>
+    <div class="nav-item" data-view="goals"><i class="fas fa-bullseye"></i> Goals</div>
+    <div class="nav-item" data-view="analytics"><i class="fas fa-chart-pie"></i> Analytics</div>
+    <div class="nav-item" data-view="pomodoro"><i class="fas fa-clock"></i> Pomodoro</div>
+    <div class="nav-item" data-view="github"><i class="fab fa-github"></i> GitHub Feed</div>
+    <div class="dark-toggle" id="darkModeToggle"><i class="fas fa-moon"></i> Dark / Light Mode</div>
+  </div>
+  <div class="main-content" id="mainContent">
+    <div class="menu-toggle" id="menuToggle"><i class="fas fa-bars"></i></div>
+    <div id="viewContainer"></div>
+  </div>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+  // ---------- STORAGE KEYS ----------
+  const STORAGE = {
+    codingLogs: 'cf_coding_logs',
+    projects: 'cf_projects',
+    learningLogs: 'cf_learning',
+    habitEntries: 'cf_habits',
+    goals: 'cf_goals',
+    darkMode: 'cf_dark'
+  };
+  let currentView = 'dashboard';
+  let charts = {};
+
+  // ---------- Helper ----------
+  function getTodayStr() { return new Date().toISOString().slice(0,10); }
+  function getWeekStart() { const d = new Date(); d.setDate(d.getDate() - d.getDay()); return d.toISOString().slice(0,10); }
+
+  // Load/Save
+  function getData(key, defaultVal) { return JSON.parse(localStorage.getItem(key)) || defaultVal; }
+  function setData(key, val) { localStorage.setItem(key, JSON.stringify(val)); }
+
+  // Default data
+  let codingLogs = getData(STORAGE.codingLogs, []);
+  let projects = getData(STORAGE.projects, []);
+  let learningLogs = getData(STORAGE.learningLogs, []);
+  let habitEntries = getData(STORAGE.habitEntries, {});
+  let goals = getData(STORAGE.goals, { weeklyHours: 12, weeklyProblems: 8, weeklyProjects: 1 });
+
+  // helper totals
+  function totalCodingHours() { return codingLogs.reduce((sum, l) => sum + (l.hours || 0), 0).toFixed(1); }
+  function streakCount() {
+    if (!codingLogs.length) return 0;
+    const dates = [...new Set(codingLogs.map(l => l.date))].sort();
+    let streak = 1, maxStreak = 1;
+    for(let i=1;i<dates.length;i++) {
+      const diff = (new Date(dates[i]) - new Date(dates[i-1])) / (1000*3600*24);
+      if(diff === 1) streak++; else streak = 1;
+      maxStreak = Math.max(maxStreak, streak);
+    }
+    return maxStreak;
+  }
+  function getWeekHours() {
+    const weekStart = getWeekStart();
+    return codingLogs.filter(l => l.date >= weekStart).reduce((s,l)=>s+l.hours,0);
+  }
+  function getMonthHours() {
+    const now = new Date();
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().slice(0,10);
+    return codingLogs.filter(l=>l.date>=monthStart).reduce((s,l)=>s+l.hours,0);
+  }
+  function getWeeklyProblems() {
+    const weekStart = getWeekStart();
+    return codingLogs.filter(l=>l.date>=weekStart).reduce((s,l)=>s+(l.problemsSolved||0),0);
+  }
+  function getCompletedProjectsThisWeek() {
+    const weekStart = getWeekStart();
+    return projects.filter(p => p.status === 'Completed' && p.completedDate && p.completedDate >= weekStart).length;
+  }
+
+  // update dashboard chart
+  let barChart, lineChart;
+  function renderDashboardCharts() {
+    const last7 = [...Array(7)].map((_,i) => { let d = new Date(); d.setDate(d.getDate()-i); return d.toISOString().slice(0,10); }).reverse();
+    const hours7 = last7.map(date => codingLogs.filter(l=>l.date===date).reduce((s,l)=>s+l.hours,0));
+    const ctxBar = document.getElementById('weeklyBarChart')?.getContext('2d');
+    if(ctxBar && barChart) barChart.destroy();
+    if(ctxBar) barChart = new Chart(ctxBar, { type: 'bar', data: { labels: last7.map(d=>d.slice(5)), datasets: [{ label: 'Coding Hours', data: hours7, backgroundColor: '#3b82f6' }] } });
+    const ctxLine = document.getElementById('trendLineChart')?.getContext('2d');
+    if(ctxLine && lineChart) lineChart.destroy();
+    if(ctxLine) lineChart = new Chart(ctxLine, { type: 'line', data: { labels: last7.map(d=>d.slice(5)), datasets: [{ label: 'Daily Hours', data: hours7, borderColor: '#f59e0b', tension: 0.3, fill: false }] } });
+  }
+
+  // analytics charts
+  let langChart, productivityChart;
+  function renderAnalytics() {
+    const langMap = new Map();
+    codingLogs.forEach(l => { if(l.language) langMap.set(l.language, (langMap.get(l.language)||0) + l.hours); });
+    const langLabels = [...langMap.keys()], langData = [...langMap.values()];
+    const ctxLang = document.getElementById('langChart')?.getContext('2d');
+    if(ctxLang && langChart) langChart.destroy();
+    if(ctxLang) langChart = new Chart(ctxLang, { type: 'doughnut', data: { labels: langLabels, datasets: [{ data: langData, backgroundColor: ['#3b82f6','#10b981','#f59e0b','#8b5cf6'] }] } });
+    // peak productivity hour (extract hour from datetime if exists)
+    const hourMap = new Array(24).fill(0);
+    codingLogs.forEach(l => { if(l.datetimeHour !== undefined) hourMap[l.datetimeHour] += l.hours; else if(l.dateTime) { let h = new Date(l.dateTime).getHours(); if(!isNaN(h)) hourMap[h] += l.hours; } });
+    const peakHour = hourMap.indexOf(Math.max(...hourMap));
+    document.getElementById('peakHourSpan').innerText = peakHour !== -1 ? `${peakHour}:00` : 'N/A';
+    const consistencyScore = codingLogs.length ? Math.min(100, Math.round((codingLogs.filter(l=>l.date>=getWeekStart()).length / 7)*100)) : 0;
+    document.getElementById('consistencyScoreSpan').innerText = `${consistencyScore}%`;
+  }
+
+  // Notification logic
+  function checkReminders() {
+    const today = getTodayStr();
+    const loggedToday = codingLogs.some(l => l.date === today);
+    if (!loggedToday) showToast("📝 Reminder: Log your coding progress today!", 4000);
+    const weekHours = getWeekHours(), weekProblems = getWeeklyProblems();
+    if(weekHours < goals.weeklyHours) showToast(`⚠️ Goal alert: Coding hours (${weekHours}/${goals.weeklyHours}) behind!`, 5000);
+    else if(weekProblems < goals.weeklyProblems) showToast(`📚 DSA goal: ${weekProblems}/${goals.weeklyProblems} problems solved`, 4000);
+  }
+
+  function showToast(msg, duration=3000) {
+    let toast = document.createElement('div'); toast.className = 'toast-msg'; toast.innerText = msg;
+    document.body.appendChild(toast);
+    setTimeout(()=> toast.remove(), duration);
+  }
+
+  // Save coding log (add/edit/delete)
+  function addCodingLog(log) { codingLogs.push(log); setData(STORAGE.codingLogs, codingLogs); renderCurrentView(); checkReminders(); }
+  function updateCodingLog(idx, newLog) { codingLogs[idx] = newLog; setData(STORAGE.codingLogs, codingLogs); renderCurrentView(); }
+  function deleteCodingLog(idx) { codingLogs.splice(idx,1); setData(STORAGE.codingLogs, codingLogs); renderCurrentView(); }
+  // Project
+  function addProject(p) { projects.push(p); setData(STORAGE.projects, projects); renderCurrentView(); }
+  function updateProject(idx, p) { projects[idx] = p; setData(STORAGE.projects, projects); renderCurrentView(); }
+  function deleteProject(idx) { projects.splice(idx,1); setData(STORAGE.projects, projects); renderCurrentView(); }
+  // Learning
+  function addLearning(l) { learningLogs.push(l); setData(STORAGE.learningLogs, learningLogs); renderCurrentView(); }
+  function deleteLearning(idx) { learningLogs.splice(idx,1); setData(STORAGE.learningLogs, learningLogs); renderCurrentView(); }
+  // Habits: save today
+  function saveHabits(checkboxes) { const today = getTodayStr(); habitEntries[today] = checkboxes; setData(STORAGE.habitEntries, habitEntries); renderCurrentView(); }
+  function loadTodayHabits() { return habitEntries[getTodayStr()] || { coding: false, dsa: false, reading: false, exercise: false }; }
+  // Goals update
+  function updateGoals(newGoals) { goals = newGoals; setData(STORAGE.goals, goals); renderCurrentView(); }
+
+  // UI rendering dynamic
+  function renderCurrentView() {
+    const container = document.getElementById('viewContainer');
+    if(currentView === 'dashboard') container.innerHTML = renderDashboard();
+    else if(currentView === 'coding') container.innerHTML = renderCodingTracker();
+    else if(currentView === 'projects') container.innerHTML = renderProjects();
+    else if(currentView === 'learning') container.innerHTML = renderLearning();
+    else if(currentView === 'habits') container.innerHTML = renderHabits();
+    else if(currentView === 'goals') container.innerHTML = renderGoals();
+    else if(currentView === 'analytics') container.innerHTML = renderAnalyticsPage();
+    else if(currentView === 'pomodoro') container.innerHTML = renderPomodoro();
+    else if(currentView === 'github') container.innerHTML = renderGithub();
+    attachViewEvents();
+    if(currentView === 'dashboard') { renderDashboardCharts(); }
+    if(currentView === 'analytics') { renderAnalytics(); }
+  }
+
+  // Dashboard HTML
+  function renderDashboard() {
+    return `
+      <h2><i class="fas fa-tachometer-alt"></i> Dashboard</h2>
+      <div class="stats-grid">
+        <div class="stat-card"><div class="stat-title">Total Coding Hours</div><div class="stat-value">${totalCodingHours()}h</div></div>
+        <div class="stat-card"><div class="stat-title">🔥 Streak</div><div class="stat-value">${streakCount()} days</div></div>
+        <div class="stat-card"><div class="stat-title">This Week</div><div class="stat-value">${getWeekHours().toFixed(1)}h</div></div>
+        <div class="stat-card"><div class="stat-title">This Month</div><div class="stat-value">${getMonthHours().toFixed(1)}h</div></div>
+      </div>
+      <div class="chart-container"><canvas id="weeklyBarChart"></canvas><p style="text-align:center">Weekly Hours</p></div>
+      <div class="chart-container"><canvas id="trendLineChart"></canvas><p style="text-align:center">Daily Trend</p></div>
+      <div class="stat-card"><div class="stat-title">✨ Motivational Quote</div><div class="stat-value" id="quoteBox">“Code is poetry.”</div></div>
+    `;
+  }
+  // Coding Tracker with edit/delete
+  function renderCodingTracker() {
+    let html = `<h2><i class="fas fa-laptop-code"></i> Coding Activity</h2><div class="card" style="background:var(--card-bg);padding:1rem;border-radius:1rem"><h3>➕ New Log</h3>
+    <div class="grid-form"><input type="text" id="lang" placeholder="Language (Python, JS...)" /><input type="number" id="hours" step="0.5" placeholder="Hours" /><input type="number" id="problems" placeholder="Problems solved" /><input type="date" id="logDate" value="${getTodayStr()}" /><input type="time" id="logTime" value="14:00" /><button class="btn" id="addCodingBtn">Save Entry</button></div></div>
+    <h3>📋 Log History</h3><div class="entry-list" id="codingList"></div>`;
+    setTimeout(() => {
+      const listDiv = document.getElementById('codingList');
+      if(listDiv) listDiv.innerHTML = codingLogs.map((log,idx) => `<div class="entry-item"><div><b>${log.language}</b> ${log.hours}h | ${log.problemsSolved||0} problems | ${log.date}<br><small>${log.timeOfDay||''}</small></div><div><button class="btn-sm editCoding" data-idx="${idx}"><i class="fas fa-edit"></i></button> <button class="btn-sm deleteCoding" data-idx="${idx}" style="background:#ef4444"><i class="fas fa-trash"></i></button></div></div>`).join('');
+      document.getElementById('addCodingBtn')?.addEventListener('click',()=>{
+        const lang = document.getElementById('lang').value, hours = parseFloat(document.getElementById('hours').value), problems = parseInt(document.getElementById('problems').value)||0;
+        const date = document.getElementById('logDate').value, time = document.getElementById('logTime').value;
+        if(!lang || !hours) return showToast("Fill language and hours");
+        const dateTimeStr = `${date}T${time}`;
+        const hourVal = new Date(dateTimeStr).getHours();
+        addCodingLog({ id:Date.now(), language:lang, hours, problemsSolved:problems, date, timeOfDay:time, dateTime:dateTimeStr, datetimeHour:hourVal });
+      });
+      document.querySelectorAll('.editCoding').forEach(btn=>btn.addEventListener('click',(e)=>{
+        const idx = btn.dataset.idx; const l = codingLogs[idx];
+        const newHours = prompt("Edit hours", l.hours); if(newHours){ l.hours=parseFloat(newHours); updateCodingLog(idx,l); }
+      }));
+      document.querySelectorAll('.deleteCoding').forEach(btn=>btn.addEventListener('click',(e)=>{ deleteCoding(btn.dataset.idx); }));
+    }, 10);
+    return html;
+  }
+
+  function renderProjects() {
+    let html = `<h2>📁 Project Tracker</h2><div class="card" style="background:var(--card-bg);padding:1rem"><input id="projName" placeholder="Project name"/><input id="projDesc" placeholder="Description"/><input id="projStack" placeholder="Tech stack"/><input id="projProgress" type="range" min="0" max="100" value="0"/><span id="progressVal">0%</span><select id="projStatus"><option>Not Started</option><option>In Progress</option><option>Completed</option></select><button class="btn" id="addProjectBtn">Add Project</button></div><div id="projectList"></div>`;
+    setTimeout(()=>{
+      const container = document.getElementById('projectList');
+      if(container) container.innerHTML = projects.map((p,idx)=>`<div class="entry-item"><div><b>${p.name}</b> - ${p.stack}<br>${p.desc}<div class="progress-bar mt-1"><div class="progress-fill" style="width:${p.progress}%"></div></div>Status: ${p.status}</div><div><button class="editProj" data-idx="${idx}">✏️</button><button class="delProj" data-idx="${idx}">🗑️</button></div></div>`).join('');
+      document.getElementById('addProjectBtn')?.addEventListener('click',()=>{
+        const name = document.getElementById('projName').value, desc = document.getElementById('projDesc').value, stack = document.getElementById('projStack').value, progress = document.getElementById('projProgress').value, status = document.getElementById('projStatus').value;
+        if(!name) return;
+        addProject({ name, desc, stack, progress: parseInt(progress), status, completedDate: status==='Completed'?getTodayStr():null });
+      });
+      document.querySelectorAll('.editProj').forEach(btn=>btn.addEventListener('click',(e)=>{ let idx=btn.dataset.idx; let p=projects[idx]; let newProg=prompt("Progress 0-100", p.progress); if(newProg) { p.progress=parseInt(newProg); if(p.progress===100) p.status="Completed"; updateProject(idx,p); } }));
+      document.querySelectorAll('.delProj').forEach(btn=>btn.addEventListener('click',(e)=>{ deleteProject(btn.dataset.idx); }));
+      const range = document.getElementById('projProgress'); if(range) range.oninput = (e)=>document.getElementById('progressVal').innerText = e.target.value+"%";
+    },10);
+    return html;
+  }
+
+  function renderLearning() {
+    let html = `<h2>📖 Learning Tracker</h2><div><input id="learnTitle" placeholder="Course / Article"/><select id="learnType"><option>Course completed</option><option>Tutorial watched</option><option>Article/Blog</option></select><textarea id="learnNote" placeholder="Key learnings"></textarea><button class="btn" id="addLearnBtn">Add</button></div><div id="learnList"></div>`;
+    setTimeout(()=>{
+      document.getElementById('addLearnBtn')?.addEventListener('click',()=>{
+        const title = document.getElementById('learnTitle').value, type = document.getElementById('learnType').value, notes = document.getElementById('learnNote').value;
+        if(title) addLearning({ id:Date.now(), title, type, notes, date:getTodayStr() });
+      });
+      const listDiv = document.getElementById('learnList');
+      if(listDiv) listDiv.innerHTML = learningLogs.map((l,idx)=>`<div class="entry-item"><div><b>${l.title}</b> (${l.type})<br><small>${l.notes}</small></div><button class="delLearn" data-idx="${idx}">❌</button></div>`).join('');
+      document.querySelectorAll('.delLearn').forEach(btn=>btn.addEventListener('click',(e)=>{ learningLogs.splice(btn.dataset.idx,1); setData(STORAGE.learningLogs, learningLogs); renderCurrentView(); }));
+    },10);
+    return html;
+  }
+
+  function renderHabits() {
+    const todayHabits = loadTodayHabits();
+    return `<h2>✅ Daily Habits</h2><div style="background:var(--card-bg);border-radius:1rem;padding:1.5rem">
+      <label><input type="checkbox" id="habitCoding" ${todayHabits.coding?'checked':''}> Coding practice (1hr+)</label><br>
+      <label><input type="checkbox" id="habitDSA" ${todayHabits.dsa?'checked':''}> DSA / Problem solving</label><br>
+      <label><input type="checkbox" id="habitReading" ${todayHabits.reading?'checked':''}> Tech blogs / docs</label><br>
+      <label><input type="checkbox" id="habitExercise" ${todayHabits.exercise?'checked':''}> Exercise / health</label><br>
+      <button class="btn" id="saveHabitsBtn">Save Today's Habits</button>
+    </div>`;
+  }
+  function attachViewEvents() {
+    document.getElementById('saveHabitsBtn')?.addEventListener('click',()=>{
+      const habits = { coding: document.getElementById('habitCoding')?.checked, dsa: document.getElementById('habitDSA')?.checked, reading: document.getElementById('habitReading')?.checked, exercise: document.getElementById('habitExercise')?.checked };
+      saveHabits(habits); showToast("Habits saved!");
+    });
+    const quote = document.getElementById('quoteBox');
+    if(quote) { const quotes = ["Code today, master tomorrow.","Consistency > intensity","Debug your limits","Stay curious!"]; quote.innerText = quotes[Math.floor(Math.random()*quotes.length)]; }
+  }
+
+  function renderGoals() {
+    return `<h2>🎯 Goal Setting</h2><div><label>Weekly Coding Hours Target: <input type="number" id="goalHours" value="${goals.weeklyHours}"/></label><br><label>Weekly Problems Target: <input type="number" id="goalProblems" value="${goals.weeklyProblems}"/></label><br><label>Weekly Projects Completion: <input type="number" id="goalProjects" value="${goals.weeklyProjects}"/></label><br><button class="btn" id="saveGoalsBtn">Update Goals</button></div>
+    <div class="stat-card mt-4"><div>📊 Progress this week: Coding Hours: ${getWeekHours().toFixed(1)} / ${goals.weeklyHours} <div class="progress-bar"><div class="progress-fill" style="width:${Math.min(100,(getWeekHours()/goals.weeklyHours)*100)}%"></div></div></div>
+    <div>🧩 Problems solved: ${getWeeklyProblems()} / ${goals.weeklyProblems} <div class="progress-bar"><div class="progress-fill" style="width:${Math.min(100,(getWeeklyProblems()/goals.weeklyProblems)*100)}%"></div></div></div>
+    <div>✅ Projects completed: ${getCompletedProjectsThisWeek()} / ${goals.weeklyProjects} <div class="progress-bar"><div class="progress-fill" style="width:${Math.min(100,(getCompletedProjectsThisWeek()/goals.weeklyProjects)*100)}%"></div></div></div></div>`;
+  }
+
+  function renderAnalyticsPage() {
+    return `<h2>📈 Analytics</h2><div class="chart-container"><canvas id="langChart" style="max-height:300px"></canvas><p>Most used language</p></div><div class="stats-grid"><div class="stat-card"><div class="stat-title">⏰ Peak Productivity Hour</div><div class="stat-value" id="peakHourSpan">--</div></div><div class="stat-card"><div class="stat-title">📅 Weekly Consistency Score</div><div class="stat-value" id="consistencyScoreSpan">--</div></div></div>`;
+  }
+
+  // extra pomodoro
+  function renderPomodoro() {
+    return `<h2>🍅 Pomodoro Timer</h2><div style="text-align:center"><div style="font-size:4rem" id="timerDisplay">25:00</div><div><button class="btn" id="startPomo">Start</button> <button class="btn" id="resetPomo">Reset</button></div><p>Focus 25min → break 5min</p></div>`;
+  }
+  function renderGithub() {
+    return `<h2><i class="fab fa-github"></i> GitHub Activity</h2><input type="text" id="githubUser" placeholder="GitHub username" /><button class="btn" id="fetchGit">Fetch Events</button><div id="githubEvents" style="margin-top:1rem"></div>`;
+  }
+  // pomodoro logic & github fetch
+  let pomodoroInterval, pomodoroTime = 1500;
+  function initPomodoroEvents() {
+    const start = document.getElementById('startPomo');
+    const reset = document.getElementById('resetPomo');
+    const display = document.getElementById('timerDisplay');
+    if(start && reset){
+      start.onclick = () => { if(pomodoroInterval) clearInterval(pomodoroInterval); pomodoroInterval = setInterval(()=>{ if(pomodoroTime<=0) { clearInterval(pomodoroInterval); alert("Time's up! Take a break"); pomodoroTime=1500; display.innerText="25:00"; } else { pomodoroTime--; let mins=Math.floor(pomodoroTime/60); let secs=pomodoroTime%60; display.innerText=`${mins}:${secs<10?'0'+secs:secs}`; } },1000); };
+      reset.onclick = () => { clearInterval(pomodoroInterval); pomodoroTime=1500; display.innerText="25:00"; };
+    }
+    const fetchBtn = document.getElementById('fetchGit');
+    if(fetchBtn) fetchBtn.onclick = async () => { const user = document.getElementById('githubUser').value; if(!user) return; try{ const res = await fetch(`https://api.github.com/users/${user}/events/public`); const data = await res.json(); const eventsDiv = document.getElementById('githubEvents'); if(data.message) eventsDiv.innerHTML = `<p>${data.message}</p>`; else eventsDiv.innerHTML = `<ul>${data.slice(0,5).map(e=>`<li>${e.type} - ${e.repo.name}</li>`).join('')}</ul>`; } catch(e){ showToast("GitHub error"); } };
+  }
+  // final initialization
+  function init() {
+    renderCurrentView();
+    checkReminders(); setInterval(()=>{ if(document.hidden===false) checkReminders(); }, 3600000);
+    document.querySelectorAll('.nav-item').forEach(el=>{
+      el.addEventListener('click',()=>{ currentView = el.dataset.view; renderCurrentView(); if(currentView==='pomodoro') setTimeout(initPomodoroEvents,50); if(currentView==='github') setTimeout(initPomodoroEvents,50); });
+    });
+    document.getElementById('darkModeToggle').addEventListener('click',()=>{ document.body.classList.toggle('dark'); localStorage.setItem('theme',document.body.classList.contains('dark')?'dark':'light'); });
+    if(localStorage.getItem('theme')==='dark') document.body.classList.add('dark');
+    const menuToggle = document.getElementById('menuToggle'); const sidebar = document.getElementById('sidebar');
+    if(menuToggle) menuToggle.onclick = () => sidebar.classList.toggle('open');
+  }
+  init();
+</script>
+</body>
+</html>
